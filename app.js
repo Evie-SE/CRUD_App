@@ -27,6 +27,11 @@ const count = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
 
 app.use(express.json());
 
+const formatTask = (task) => ({
+    ...task,
+    done: Boolean(task.done)
+});
+
 /*app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const tasks = [
     {id: 1, title: "Accomplish Week 2 Backend Task", done: false},
@@ -35,7 +40,6 @@ const tasks = [
 ]; */ 
 
 app.get('/', (req, res) => {
-    res.send("Hello World!");
     res.json( {
         name: "Task API",
         version: "1.0",
@@ -51,8 +55,13 @@ app.get('/health', (req, res) =>  {
 
 app.get('/tasks', (req, res) => {
     const tasks = db.prepare('SELECT * FROM tasks').all();
-    res.json(tasks);
-})
+    //res.json(tasks);
+
+    const formattedTasks = tasks.map(formatTask);
+
+    res.json(formattedTasks);
+});
+
 
 app.get('/tasks/:id', (req, res) => {
     const taskID = Number(req.params.id);
@@ -60,22 +69,25 @@ app.get('/tasks/:id', (req, res) => {
     if (!task) {
         return res.status(404).json({error: `Task ${taskID} not found`});
     }
-    res.json(task);
+    res.json(formatTask(task));
 });
 
 app.post('/tasks', (req, res) => {
-   const {title} = req.body;
+   const {title, done} = req.body;
     if(!title || typeof title !== "string" || title.trim() === '') {
         return res.status(400).json ({error: "Title is required"});
     }
-const nextId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-    const newTask = {
-        id: nextId,
-        title: title.trim(),
-        done: false
-    };
-    tasks.push(newTask);
-    res.status(201).json(newTask);
+
+   if (typeof done !== "boolean") {
+        return res.status(400).json({error: "Done must be a boolean"});
+   }
+
+   const isDone = done ? 1 : 0;
+   const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, ?)')
+   const result = insert.run(title.trim(), isDone);
+   const newTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
+
+   return res.status(201).json(newTask);
     }
 );
 
@@ -124,5 +136,4 @@ app.delete ('/tasks/:id', (req, res) => {
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
-
 
