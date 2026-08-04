@@ -3,15 +3,35 @@ const app = express();
 const port = 3000;
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./openapi.json');
+const path = require('path');
+//declare the database connection
+const Database = require('better-sqlite3');
 
+//connecting to the database
+const db = new Database(path.join(__dirname, 'tasks.db'));
+
+db.exec(`CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY,
+    title TEXT,
+    done BOOLEAN
+)`);
+
+const count = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
+ if (count === 0) {
+    const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, ?) ');
+    insert.run('Accomplish Week 3 Backend Task', 0);
+    insert.run('Watch Spider-Man: Brand New Day', 0);
+    insert.run('Go to the gym', 0);
+ }
 
 app.use(express.json());
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+/*app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const tasks = [
     {id: 1, title: "Accomplish Week 2 Backend Task", done: false},
     {id: 2, title: "Get a good night's sleep", done: false},
     {id: 3, title: "Accomplish ML Assignment", done: false},
-];
+]; */ 
 
 app.get('/', (req, res) => {
     res.send("Hello World!");
@@ -29,7 +49,8 @@ app.get('/health', (req, res) =>  {
 });
 
 app.get('/tasks', (req, res) => {
-    res.json (tasks);
+    const tasks = db.prepare('SELECT * FROM tasks').all();
+    res.json(tasks);
 })
 
 app.get('/task/:id', (req, res) => {
