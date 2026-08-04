@@ -7,6 +7,7 @@ const path = require('path');
 //declare the database connection
 const Database = require('better-sqlite3');
 
+
 //connecting to the database
 const db = new Database(path.join(__dirname, 'tasks.db'));
 
@@ -53,9 +54,9 @@ app.get('/tasks', (req, res) => {
     res.json(tasks);
 })
 
-app.get('/task/:id', (req, res) => {
-    const taskID = parseInt (req.params.id, 10);
-    const task = tasks.find(t => t.id === taskID);
+app.get('/tasks/:id', (req, res) => {
+    const taskID = Number(req.params.id);
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
     if (!task) {
         return res.status(404).json({error: `Task ${taskID} not found`});
     }
