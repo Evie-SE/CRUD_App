@@ -93,19 +93,19 @@ app.post('/tasks', (req, res) => {
 
 app.put ('/tasks/:id', (req, res) => {
     const taskID = parseInt(req.params.id, 10);
-    const task = tasks.find(t => t.id === taskID);
-
-    if(!task) {
-        return res.status(400).json({error: `Task ${taskID} not found`});
-    }
-
     const {title, done} = req.body;
 
+    const existingTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
+
+    if(!existingTask) {
+        return res.status(404).json({error: `Task ${taskID} not found`});
+    }
+   
     if(title === undefined && done === undefined) {
         return res.status(400).json({error: "No fields to update"});
     }
 
-    if(title !== undefined) {
+    /* if(title !== undefined) {
         if(typeof title !== "string" || title.trim() === '') {
             return res.status(400).json({error: "Title must be a non-empty string"});
         }
@@ -118,19 +118,38 @@ app.put ('/tasks/:id', (req, res) => {
         }
         task.done = done;
     }
+    */
+    let updatedTitle = existingTask.title;
+    if(title !== undefined) {
+        if(typeof title !== "string" || title.trim() === "") {
+            return res.status(400).json({error: "Title must a non-empty string"});
+        }
+        updatedTitle = title.trim();
+    }
 
+    let updatedDone = existingTask.done;
+    if (done !== undefined) {
+        if(typeof done !== "boolean") {
+            return res.status(400).json({ error: "Done must be a boolean" });
+        }
+        updatedDone = done ? 1 : 0;
+    }
+    const update = db.prepare('UPDATE tasks SET title = ?, done = ? WHERE id = ?');
+    const result = update.run(updatedTitle, updatedDone, taskID);
+
+    const updatedTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
+    return res.json(formatTask(updatedTask));
 });
 
 app.delete ('/tasks/:id', (req, res) => {
     const taskID = parseInt(req.params.id, 10);
-    const taskIndex = tasks.findIndex(t => t.id === taskID);
-
-    if(taskIndex === -1) {
+    const existingTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
+    if(!existingTask) {
         return res.status(404).json({error: `Task ${taskID} not found`});
     }
 
-    tasks.splice(taskIndex, 1);
-    res.status(204).send();
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(taskID);
+    return res.status(204).send();
 });
 
 app.listen(port, () => {
