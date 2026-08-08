@@ -47,7 +47,7 @@ const formatTask = (task) => ({
     ...task,
     done: Boolean(task.done)
 });
-/*
+
 app.get('/', (req, res) => {
     res.json( {
         name: "Task API",
@@ -62,20 +62,19 @@ app.get('/health', (req, res) =>  {
     })
 });
 
-app.get('/tasks', (req, res) => {
+app.get('/tasks', async (req, res) => {
     const { done, search } = req.query;
     let conditions = [];
     let params = [];
 
     if (search) {
-        conditions.push('title LIKE ?');
         params.push(`%${search.trim()}%`);
+        conditions.push(`title LIKE $${params.length}`);
     }
 
     if (done !== undefined) {
-        const isDone = done === 'true' ? 1 : 0;
-        conditions.push('done = ?');
-        params.push(isDone);
+       params.push(done === 'true');
+       conditions.push(`done = $${params.length}`)
     }
 
     let query = 'SELECT * FROM tasks';
@@ -83,8 +82,8 @@ app.get('/tasks', (req, res) => {
         query += ' WHERE ' + conditions.join(' AND ');
     }
 
-    const tasks = db.prepare(query).all(...params);
-    res.json(tasks.map(formatTask));
+    const {rows} = await pool.query(query, params);
+    res.json(rows.map(formatTask));
 });
 
 /*const tasks = db.prepare('SELECT * FROM tasks').all();
@@ -93,16 +92,19 @@ app.get('/tasks', (req, res) => {
     const formattedTasks = tasks.map(formatTask);
 
     res.json(formattedTasks); */
-/*
-app.get('/tasks/:id', (req, res) => {
+
+app.get('/tasks/:id', async (req, res) => {
     const taskID = Number(req.params.id);
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
+    const {rows} = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskID]);
+    const task = rows[0];
+
     if (!task) {
         return res.status(404).json({error: `Task ${taskID} not found`});
     }
     res.json(formatTask(task));
 });
 
+/*
 app.post('/tasks', (req, res) => {
    const {title, done} = req.body;
     if(!title || typeof title !== "string" || title.trim() === '') {
