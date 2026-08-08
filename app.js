@@ -54,14 +54,36 @@ app.get('/health', (req, res) =>  {
 });
 
 app.get('/tasks', (req, res) => {
-    const tasks = db.prepare('SELECT * FROM tasks').all();
+    const { done, search } = req.query;
+    let conditions = [];
+    let params = [];
+
+    if (search) {
+        conditions.push('title LIKE ?');
+        params.push(`%${search.trim()}%`);
+    }
+
+    if (done !== undefined) {
+        const isDone = done === 'true' ? 1 : 0;
+        conditions.push('done = ?');
+        params.push(isDone);
+    }
+
+    let query = 'SELECT * FROM tasks';
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const tasks = db.prepare(query).all(...params);
+    res.json(tasks.map(formatTask));
+});
+
+/*const tasks = db.prepare('SELECT * FROM tasks').all();
     //res.json(tasks);
 
     const formattedTasks = tasks.map(formatTask);
 
-    res.json(formattedTasks);
-});
-
+    res.json(formattedTasks); */
 
 app.get('/tasks/:id', (req, res) => {
     const taskID = Number(req.params.id);
