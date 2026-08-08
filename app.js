@@ -4,26 +4,42 @@ const port = 3000;
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./openapi.json');
 const path = require('path');
+require('dotenv').config();
 //declare the database connection
-const Database = require('better-sqlite3');
-
+const { Pool } = require('pg');
 
 //connecting to the database
-const db = new Database(path.join(__dirname, 'tasks.db'));
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+});
 
-db.exec(`CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY,
-    title TEXT,
-    done BOOLEAN
-)`);
+async function initDB() {
+    try {
+        await pool.query(`
+           CREATE TABLE IF NOT EXISTS tasks (
+           id SERIAL PRIMARY KEY,
+           title TEXT NOT NULL,
+           done BOOLEAN DEFAULT FALSE
+           ); 
+        `)
 
-const count = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
- if (count === 0) {
-    const insert = db.prepare('INSERT INTO tasks (title, done) VALUES (?, ?) ');
-    insert.run('Accomplish Week 3 Backend Task', 0);
-    insert.run('Watch Spider-Man: Brand New Day', 0);
-    insert.run('Go to the gym', 0);
- }
+        const res = await pool.query('SELECT COUNT(*) FROM tasks');
+        if(parseInt(res.rows[0].count) === 0) {
+            await pool.query(`
+                INSERT INTO tasks (title, done) VALUES
+                ('First Task', false),
+                ('Second Task', false),
+                ('Third Task', false)
+            `);
+            console.log('Seeded initial task!');
+        }
+        console.log('Database connected & initialized successfully');
+    } catch (err) {
+        console.log('Error setting up database: ', err);
+    }
+}
+
+initDB();
 
 app.use(express.json());
 
@@ -31,14 +47,7 @@ const formatTask = (task) => ({
     ...task,
     done: Boolean(task.done)
 });
-
-/*app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-const tasks = [
-    {id: 1, title: "Accomplish Week 2 Backend Task", done: false},
-    {id: 2, title: "Get a good night's sleep", done: false},
-    {id: 3, title: "Accomplish ML Assignment", done: false},
-]; */ 
-
+/*
 app.get('/', (req, res) => {
     res.json( {
         name: "Task API",
@@ -84,7 +93,7 @@ app.get('/tasks', (req, res) => {
     const formattedTasks = tasks.map(formatTask);
 
     res.json(formattedTasks); */
-
+/*
 app.get('/tasks/:id', (req, res) => {
     const taskID = Number(req.params.id);
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskID);
@@ -141,6 +150,7 @@ app.put ('/tasks/:id', (req, res) => {
         task.done = done;
     }
     */
+/*
     let updatedTitle = existingTask.title;
     if(title !== undefined) {
         if(typeof title !== "string" || title.trim() === "") {
@@ -173,7 +183,7 @@ app.delete ('/tasks/:id', (req, res) => {
     db.prepare('DELETE FROM tasks WHERE id = ?').run(taskID);
     return res.status(204).send();
 });
-
+*/
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
